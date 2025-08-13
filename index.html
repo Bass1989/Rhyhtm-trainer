@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ABCJS リズム練習ツール（4/4）</title>
+  <!-- abcjs（描画＋シンセ） -->
+  <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/dist/abcjs-basic-min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;        /* slate-900 */
+      --card: #111827;      /* gray-900 */
+      --ink: #e5e7eb;       /* gray-200 */
+      --muted: #9ca3af;     /* gray-400 */
+      --accent: #22d3ee;    /* cyan-400 */
+    }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    }
+    .wrap {
+      max-width: 960px; margin: 24px auto; padding: 16px;
+    }
+    h1 {
+      font-size: 20px; font-weight: 700; margin: 0 0 12px;
+      letter-spacing: .02em;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .controls {
+      display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 4px;
+    }
+    button {
+      appearance: none; border: 0; outline: 0;
+      background: #1f2937; color: var(--ink);
+      padding: 10px 16px; border-radius: 12px; font-weight: 700;
+      cursor: pointer; transition: transform .06s ease, box-shadow .2s ease, background .2s ease;
+      box-shadow: 0 6px 16px rgba(0,0,0,.25);
+    }
+    button:hover { background:#111827; }
+    button:active { transform: translateY(1px); }
+    .accent { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; }
+    .status { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    #paper { width: 100%; overflow: auto; }
+    /* ABCJS の SVG をダークに馴染ませる */
+    .abcjs-container, #paper svg { filter: drop-shadow(0 2px 8px rgba(0,0,0,.2)); }
+    .meta {
+      display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;
+      color: var(--muted); font-size: 12px;
+    }
+    .meta code {
+      background:#0b1020; color:#a5f3fc; padding:4px 8px; border-radius:8px;
+      border:1px solid rgba(255,255,255,.06);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>リズム練習ツール（4/4｜ABC記法）</h1>
+    <div class="card">
+      <div class="meta">
+        <div>読み込み時にランダム表示。<span style="color:#a5b4fc">Cのみ・1～2小節</span>、シンコペ多め。</div>
+        <div>テンポ: <code id="tempo">♩=100</code></div>
+      </div>
+      <div class="controls">
+        <button id="playBtn" class="accent">再生 ▶</button>
+        <button id="nextBtn">次へ ↻</button>
+      </div>
+      <div id="paper"></div>
+      <div class="status" id="status">準備中…</div>
+    </div>
+  </div>
+
+  <script>
+    // ---- 4/4 リズムパターン（L:1/8 基準、C のみ使用）----
+    // 1小節=8（八分音符単位）。数字は八分音符の長さ：2=四分、3=付点四分、4=二分、1=八分。
+    // 休符は z、タイは "-"。2小節パターンは | で区切り。
+    const PATTERNS = [
+      // 01 基本の4ビート
+      "| C2 C2 C2 C2 |",
+      // 02 スウィング入口（弱拍食い）
+      "| C C3 C C2 C |",
+      // 03 2拍目裏アタックの反復
+      "| C2 C C2 C | C2 C C2 C |",
+      // 04 付点→シンコペ
+      "| C3 C C3 C |",
+      // 05 二分＋裏2回
+      "| C4 C C C |",
+      // 06 表→タイで裏へ（クラーベ風）
+      "| C2- C C2- C | C2 C2 |",
+      // 07 連続シンコペ
+      "| C3- C C3- C |",
+      // 08 2& と 4& を強調
+      "| C2 C C2 C |",
+      // 09 付点→裏→付点→裏
+      "| C3 C C3 C |",
+      // 10 レストで抜く（スペース感）
+      "| C2 z C2 C | C2 z C C |",
+      // 11 バックビート寄り
+      "| z C2 z C2 | C2 C2 |",
+      // 12 ロンガー・タイ（拍跨ぎ）
+      "| C3- C C2- C |",
+      // 13 裏始まり
+      "| z C3 C2 C | C C2 C |",
+      // 14 二分休符からドン
+      "| z4 C C C |",
+      // 15 疑似チャールストン
+      "| C3 C | C3 C |",
+      // 16 チャールストン変形（拍跨ぎタイ）
+      "| C3- C C2 C |",
+      // 17 表裏裏（レスト混ぜ）
+      "| C2 z C C2 C |",
+      // 18 裏2連続を跨いでキープ
+      "| C2 C3- C | C C2 |",
+      // 19 4拍目食い→次小節アタック
+      "| C2 C2 C- C | C2 C2 |",
+      // 20 シンコペ強めの2小節
+      "| C3- C C- C | C3 C C |"
+    ];
+
+    // ---- 基本設定 ----
+    const DEFAULT_TEMPO = 100; // ♩=100
+    const header = (q = DEFAULT_TEMPO) =>
+      `X:1
+T:Rhythm Pattern
+M:4/4
+L:1/8
+Q:1/4=${q}
+K:C
+`;
+
+    let currentIndex = -1;
+    let visualObj = null;
+    let synth = null;
+    let isPlaying = false;
+    const paperEl = document.getElementById("paper");
+    const statusEl = document.getElementById("status");
+    const playBtn = document.getElementById("playBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const tempoEl = document.getElementById("tempo");
+
+    // ---- ABC を描画＆サウンド準備 ----
+    async function renderPattern(abcBody) {
+      try {
+        // 描画
+        paperEl.innerHTML = "";
+        const abc = header(DEFAULT_TEMPO) + abcBody;
+        const engraverParams = {
+          responsive: "resize",
+          add_classes: true,
+          paddingtop: 10,
+          paddingleft: 10,
+          paddingright: 10
+        };
+        const tuneObjs = ABCJS.renderAbc("paper", abc, engraverParams);
+        visualObj = tuneObjs && tuneObjs[0] ? tuneObjs[0] : null;
+
+        // サウンド準備
+        if (!visualObj || !ABCJS.synth || !ABCJS.synth.CreateSynth) {
+          statusEl.textContent = "レンダリングは完了しましたが、音声初期化に失敗しました。";
+          return;
+        }
+        if (synth && isPlaying) {
+          await stopPlayback(); // 再生中なら止める
+        }
+        synth = new ABCJS.synth.CreateSynth();
+        await synth.init({
+          visualObj,
+          options: {
+            audioContext: new (window.AudioContext || window.webkitAudioContext)(),
+            // わずかにクオンタイズしてタイトに
+            // ただし abcjs の内部で十分タイトなので最小限
+            pan: 0
+          }
+        });
+        await synth.prime();
+        statusEl.textContent = "準備完了。";
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = "エラー：楽譜または音声の初期化に失敗しました。";
+      }
+    }
+
+    async function stopPlayback() {
+      try {
+        if (synth) await synth.stop();
+      } catch (e) {
+        console.warn("stop error", e);
+      } finally {
+        isPlaying = false;
+        playBtn.textContent = "再生 ▶";
+      }
+    }
+
+    async function togglePlay() {
+      if (!synth || !visualObj) {
+        statusEl.textContent = "音声の準備中です…";
+        return;
+      }
+      if (isPlaying) {
+        await stopPlayback();
+        return;
+      }
+      try {
+        // クリック時に AudioContext を再開（ブラウザ制約対策）
+        const ac = synth.audioContext;
+        if (ac && ac.state === "suspended") {
+          await ac.resume();
+        }
+        isPlaying = true;
+        playBtn.textContent = "停止 ■";
+        statusEl.textContent = "再生中…";
+        await synth.start();
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = "再生エラーが発生しました。";
+        isPlaying = false;
+        playBtn.textContent = "再生 ▶";
+      }
+    }
+
+    function pickNextIndex() {
+      if (PATTERNS.length <= 1) return 0;
+      let idx = Math.floor(Math.random() * PATTERNS.length);
+      if (idx === currentIndex) {
+        idx = (idx + 1) % PATTERNS.length; // 同じを避ける
+      }
+      return idx;
+    }
+
+    async function showRandomPattern() {
+      currentIndex = pickNextIndex();
+      const body = PATTERNS[currentIndex];
+      await renderPattern(body);
+    }
+
+    // ---- イベント ----
+    playBtn.addEventListener("click", togglePlay);
+    nextBtn.addEventListener("click", async () => {
+      await stopPlayback();
+      await showRandomPattern();
+    });
+
+    // ---- 初期化 ----
+    window.addEventListener("load", async () => {
+      if (!window.ABCJS) {
+        statusEl.textContent = "abcjs が読み込めませんでした。ネットワークをご確認ください。";
+        return;
+      }
+      tempoEl.textContent = "♩=" + DEFAULT_TEMPO;
+      await showRandomPattern();
+    });
+  </script>
+</body>
+</html>
