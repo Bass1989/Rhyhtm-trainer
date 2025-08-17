@@ -66,8 +66,8 @@ const JAZZ_STANDARDS = [
   "T:The Girl From Ipanema\n| G3 E ED2G-|G2 EE- EEDG-|G2 |",
   "T:Have You Met Miss Jones\n| F3 D C D2 C- | C8|",
   "T:Hot House\n|_B-||B_BA_A G2 _GF| EF^F_B F2 z|",
-  "T:I Love You\n| c || c2 _D2- | D2 _B3/2 A/2 | ^G3/2 A/2 A2- | A2 |",
-  "T:Invitation\n| (3 D_Ed A2- | A G/2_B/2 (3 AGC| D4 |",
+  "T:I Love You\n| c2 || c4 _D4- | D4 _B3 A | ^G3 A A4- | A4 |",
+  "T:Invitation\n| (3 D2_E2d2 A4- | A2 G_B (3 A2G22C2| D8 |",
   "T:Jor Du\n| z G,CD _EFGE||^F4 =F3 _E |",
   "T:Lullaby of Birdland\n| cc_B_A G F2 D-|D2 F=E- E2 z C-| C2 |",
   "T:Moanin'\n| z F2 F _AAFC || _E2 F2 z4 |"  
