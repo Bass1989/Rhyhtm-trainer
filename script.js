@@ -52,7 +52,7 @@ const PATTERNS = [
   "| z2 C4 C2- | C3 C-C2 C2|",  // Cute #2
   "| z C2 C C C2 C- | C C2 C C C3|",  // fly me #1
   "| z C3 C3 C-| C2 z2 z C z2 |",  // On The Street #1
-  "| C6 CC-| C3 C C CCCC |",  // Softly #1
+  "| C6 CC-| C3 C  CCCC |",  // Softly #1
   "| C2 CC- C C2 C- | CCCC- C2 C2 |",  // Softly #2
   "| CCC- C-CC |",  // straigh風 
 ];
@@ -65,7 +65,12 @@ const JAZZ_STANDARDS = [
   "T:Corcovado\n| z E2 D E D2 E-|E D2 E-E4 |",
   "T:The Girl From Ipanema\n| G3 E ED2G-|G2 EE- EEDG-|G2 |",
   "T:Have You Met Miss Jones\n| F3 D C D2 C- | C8|",
-  "T:Hot House\n|_B-||B_BA_A G2 _GF| EF^F_B F2 z|"
+  "T:Hot House\n|_B-||B_BA_A G2 _GF| EF^F_B F2 z|",
+  "T:I Love You\n| c || c2 _D2- | D2 _B3/2 A/2 | ^G3/2 A/2 A2- | A2 |",
+  "T:Invitation\n| (3 D_Ed A2- | A G/2_B/2 (3 AGC| D4 |",
+  "T:Jor Du\n| z G,CD _EFGE||^F4 =F3 _E |",
+  "T:Lullaby of Birdland\n| cc_B_A G F2 D-|D2 F=E- E2 z C-| C2 |",
+  "T:Moanin'\n| z F2 F _AAFC || _E2 F2 z4 |"  
 ];
 
 // 現在のモードに応じたデータソースを返すヘルパー関数
