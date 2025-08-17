@@ -1,0 +1,143 @@
+/* --- 全体の設定（ダークテーマ） --- */
+:root { color-scheme: dark; }
+
+body {
+    background: #0f172a;
+    color: #e5e7eb;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.wrap {
+    max-width: 900px;
+    margin: auto;
+    padding: 1rem;
+}
+
+.card {
+    background: #111827;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,.25);
+}
+
+.controls {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+button {
+    padding: .6rem 1rem;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+button.accent {
+    background: linear-gradient(135deg,#06b6d4,#3b82f6);
+    color: white;
+}
+
+.tempo-control {
+    margin: .75rem 0 0;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.tempo-control input { flex: 1; }
+
+.tempo-display {
+    font-weight: 800;
+    min-width: 3ch;
+    text-align: right;
+}
+
+/* 1. 楽譜エリアの背景と基本テキスト色 */
+#paper {
+    margin-top: 1rem;
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+/* 2. abcjsが生成するSVG要素の色を上書き */
+/* 五線譜の線 */
+#paper path.abcjs-staff { stroke: #000000; }
+
+/* 音符、休符、臨時記号、小節線など、主要な記号の色 */
+#paper path.abcjs-note,
+#paper path.abcjs-rest,
+#paper path.abcjs-acci,
+#paper path.abcjs-bar,
+#paper path.abcjs-clef,
+#paper path.abcjs-key-signature,
+#paper path.abcjs-time-signature {
+    fill: #000000;
+    stroke: #000000;
+}
+
+/* 連桁（ビーム）の色 */
+#paper path.abcjs-beam-elem {
+    fill: #000000;
+    stroke: #000000;
+}
+
+/* タイやスラーなどの曲線 */
+#paper path.abcjs-slur,
+#paper path.abcjs-tie {
+    fill: none;
+    stroke: #000000;
+}
+
+/* 曲のタイトルやコード名などのテキスト */
+#paper text.abcjs-title-text,
+#paper text.abcjs-chord-text,
+#paper text.abcjs-annotation-text {
+    fill: #000000;
+    stroke: none;
+}
+
+/* --- ステータスバーを非表示にする --- */
+.status { display: none; }
+
+/* --- モード切替ボタンのスタイル --- */
+.mode-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #374151;
+    padding-bottom: 1rem;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    font-size: 1em;
+    font-weight: 700;
+    border: 2px solid #374151;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: transparent;
+    color: #9ca3af;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover { background-color: #1f2937; }
+
+.mode-btn.active {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* --- 操作コントロールの位置調整 --- */
+.bottom-controls {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid #374151;
+}

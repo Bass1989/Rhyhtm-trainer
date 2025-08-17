@@ -3,327 +3,39 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>リズム練習ツール（4/4｜ABCJS）</title>
-<!-- abcjs（basic版。描画＋合成音再生を含むビルド） -->
+<title>リズム練習ツール</title>
 <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/dist/abcjs-basic-min.js"></script>
-<style>
-  /* --- 見た目（ダークテーマ） --- */
-  :root { color-scheme: dark; }
-  body { background:#0f172a; color:#e5e7eb; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .wrap { max-width: 900px; margin: auto; padding: 1rem; }
-  .card { background:#111827; border-radius: 12px; padding: 1rem; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
-  .controls { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
-  button { padding:.6rem 1rem; border:none; border-radius: 10px; cursor:pointer; font-weight:700; }
-  button.accent { background: linear-gradient(135deg,#06b6d4,#3b82f6); color:white; }
-  #paper { margin-top: 1rem; }
-  .status { font-size:.85rem; color:#9ca3af; margin-top:.5rem; min-height:1.4em; }
-  .tempo-control { margin:.75rem 0 0; display:flex; align-items:center; gap:.6rem; }
-  .tempo-control input { flex:1; }
-  .tempo-display { font-weight:800; min-width:3ch; text-align:right; }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="wrap">
-  <h1>リズム練習ツール（4/4｜ABCJS）</h1>
+  <h1>🎶 リズム練習ツール</h1>
   <div class="card">
-    <div class="controls">
-      <button id="playBtn" class="accent">再生 ▶</button>
-      <button id="nextBtn" title="別のパターンをランダム表示">次へ ↻</button>
-    </div>
 
-    <!-- テンポUI：スライダー＋数値（BPM） -->
-    <div class="tempo-control">
-      <label for="tempoSlider">テンポ</label>
-      <input type="range" id="tempoSlider" min="60" max="160" value="100" step="1" />
-      <span class="tempo-display" id="tempoVal">100</span><span> BPM</span>
+    <!-- 1. モード切替ボタン (楽譜の上部) -->
+    <div class="mode-controls">
+      <button id="modeRhythmBtn" class="mode-btn active">Rhythm Pattern</button>
+      <button id="modeJazzBtn" class="mode-btn">Jazz Standard</button>
     </div>
 
     <!-- 楽譜描画先 -->
     <div id="paper" aria-label="score area"></div>
 
-    <!-- ステータス表示（準備中、再生中など） -->
-    <div class="status" id="status">準備中…</div>
+    <!-- 2. 操作ボタン (楽譜の下部) -->
+    <div class="bottom-controls">
+      <div class="controls">
+        <button id="playBtn" class="accent">再生 ▶</button>
+        <button id="nextBtn" title="別のパターンをランダム表示">次へ ↻</button>
+      </div>
+      <div class="tempo-control">
+        <label for="tempoSlider">テンポ</label>
+        <input type="range" id="tempoSlider" min="60" max="200" value="120" step="1" />
+        <span class="tempo-display" id="tempoVal">120</span><span> BPM</span>
+      </div>
+    </div>
+
   </div>
 </div>
-
-<script>
-/* ============================
-   仕様：4/4、L:1/8（基準=8分）で1小節=8単位
-   → 各小節は合計8（例: | C2 C2 C2 C2 | が正）
-   C=8分、C2=4分、C3=付点4分、C4=2分、z=休符
-   ============================ */
-
-/* --- 定数と状態 --- */
-const DEFAULT_TEMPO = 100; // 初期BPM
-const AC = new (window.AudioContext || window.webkitAudioContext)(); // AudioContextは使い回し
-let currentIndex = -1;      // 現在のパターン番号
-let visualObj = null;       // ABCJSの描画結果（再生にも利用）
-let synth = null;           // ABCJS.synth.CreateSynth のインスタンス
-let isPlaying = false;      // 再生中か（ループON/OFFの意味も兼ねる）
-
-/* --- DOM参照 --- */
-const paperEl = document.getElementById("paper");
-const statusEl = document.getElementById("status");
-const playBtn = document.getElementById("playBtn");
-const nextBtn = document.getElementById("nextBtn");
-const tempoSlider = document.getElementById("tempoSlider");
-const tempoVal = document.getElementById("tempoVal");
-
-/* --- ABCヘッダ（テンポはQ:で指定。L:1/8固定） --- */
-const header = (tempo) => `X:1
-T:Rhythm Pattern
-M:4/4
-L:1/8
-Q:1/4=${tempo}
-K:C
-`;
-
-/* --- リズムパターン（1～2小節）。各小節の合計は必ず8（L:1/8基準） --- */
-const PATTERNS = [
-  // シンプル
-  "| C2 C2 C2 C2 |",                              // 01 4分4つ
-  "| C3 C C3 C |",                                // 02 付点4分でシンコペ
-  "| C2 C2 C C2 C |",                             // 03 表拍中心＋裏
-  "| C C2 C C2 C2 |",                             // 04 裏→表の推進
-  "| C4 C2 C2 |",                                 // 05 2分＋4分2つ
-
-  // タイと休符（シンコペ多め）
-  "| C2- C C2- C C2 |",                           // 06 タイで裏に跨ぐ
-  "| C3- C C C3 |",                               // 07 アップで引っかけ→解決
-  "| z2 C C z C2 C |",                            // 08 休符で食う
-  "| C C C2 C C2 C |",                            // 09 8分→4分の重心移動
-  "| z C2 C z C2 C |",                            // 10 頭休符→押し出し
-
-  // 2小節の反復（スウィング練に好適）
-  "| C3 C C3 C | C3 C C3 C |",                    // 11 タン・タ タン・タ ×2
-  "| C2 C2 z2 C2 |",                              // 12 4分×2→休→4分
-  "| z3 C C3 C |",                                // 13 長い休符→アタック
-  "| C2 z2 C2 z2 |",                              // 14 休符を拍で固定
-  "| C C3 C C3 |",                                // 15 裏頭の連続
-
-  // 2小節で起伏を作る
-  "| C4 C4 | C2 C2 C2 C2 |",                      // 16 サス→粒立ち
-  "| C2 C C3 C C | C C2 C C2 C2 |",               // 17 1小節目で食って2小節目で整える
-  "| z C C2 C C2 C |",                            // 18 アンツァッツ→拍上
-  "| C2- C C C2- C C |",                          // 19 食って→解決を2回
-  "| C3- C C2 C C | C2 C3- C C2 |"                // 20 2小節で呼応
-];
-
-/* --- ユーティリティ：次のランダムインデックス（同一連続回避） --- */
-function pickNextIndex() {
-  let idx = Math.floor(Math.random() * PATTERNS.length);
-  if (idx === currentIndex) idx = (idx + 1) % PATTERNS.length;
-  return idx;
-}
-
-/* --- 楽譜描画＋サウンド準備（テンポ変更やパターン切替時に毎回呼ぶ） --- */
-async function renderPattern(abcBody, tempo) {
-  // 旧インスタンスがあれば止める（音が重ならないように）
-  if (synth) {
-    try { 
-      await synth.stop(); 
-    } catch (_) {}
-    synth = null;
-  }
-
-  // 楽譜描画
-  paperEl.innerHTML = "";
-  const abc = header(tempo) + abcBody;
-  const tunes = ABCJS.renderAbc("paper", abc, { responsive: "resize" });
-  visualObj = tunes && tunes[0] ? tunes[0] : null;
-
-  if (!visualObj) {
-    statusEl.textContent = "楽譜描画に失敗しました";
-    return;
-  }
-
-  // サウンド準備（AudioContextは共用）
-  synth = new ABCJS.synth.CreateSynth();
-
-  // ★ 修正：onEndedコールバックで安定したループ実装
-  const onEnded = async () => {
-    // 再生モードがONのときだけループ
-    if (isPlaying && synth) {
-      try {
-        // ★ 重要修正：seekを使わず、synthを再作成してループ
-        // これによりABCJS内部状態のリセットを確実に行う
-        await createNewSynthAndPlay();
-      } catch (e) {
-        console.warn("restart failed:", e);
-        // エラー時は停止
-        isPlaying = false;
-        playBtn.textContent = "再生 ▶";
-        statusEl.textContent = "再生エラーで停止";
-      }
-    }
-  };
-
-  try {
-    await synth.init({
-      visualObj,
-      audioContext: AC, // ひとつのAudioContextを使い回し
-      options: {
-        onEnded // ← 再生終了時に呼ばれる公式フック
-      }
-    });
-    const primed = await synth.prime();
-    statusEl.textContent = `準備完了（AudioContext: ${primed.status}）`;
-  } catch (err) {
-    statusEl.textContent = "音声初期化に失敗しました";
-    console.error(err);
-  }
-}
-
-/* --- 新しいsynthを作成して再生する関数（ループ用） --- */
-async function createNewSynthAndPlay() {
-  if (!visualObj || !isPlaying) return;
-  
-  try {
-    // 現在のsynthを停止・破棄
-    if (synth) {
-      try { await synth.stop(); } catch (_) {}
-    }
-    
-    // 新しいsynthインスタンスを作成
-    synth = new ABCJS.synth.CreateSynth();
-    
-    // onEndedコールバック再設定
-    const onEnded = async () => {
-      if (isPlaying && synth) {
-        try {
-          await createNewSynthAndPlay();
-        } catch (e) {
-          console.warn("loop restart failed:", e);
-          isPlaying = false;
-          playBtn.textContent = "再生 ▶";
-          statusEl.textContent = "再生エラーで停止";
-        }
-      }
-    };
-    
-    // AudioContext状態確認・復帰
-    if (AC.state === "suspended") {
-      await AC.resume();
-    }
-    
-    // 初期化
-    await synth.init({
-      visualObj,
-      audioContext: AC,
-      options: { 
-        onEnded,
-        instrument: 0, // 楽器番号で指定（よりシンプル）
-        chordsOff: true // コード無効化でパフォーマンス向上
-      }
-    });
-    
-    await synth.prime();
-    
-    // 再生開始（isPlayingが途中でfalseになった場合は中止）
-    if (isPlaying) {
-      await synth.start();
-    }
-    
-  } catch (err) {
-    console.error("createNewSynthAndPlay failed:", err);
-    // エラー時は停止
-    isPlaying = false;
-    playBtn.textContent = "再生 ▶";
-    statusEl.textContent = "再生エラーで停止";
-  }
-}
-
-/* --- 再生/停止トグル --- */
-async function togglePlay() {
-  if (!synth || !visualObj) return;
-
-  // iOS/Safari対策：ユーザー操作後にresumeしておく
-  if (AC.state === "suspended") {
-    try { await AC.resume(); } catch (_) {}
-  }
-
-  if (isPlaying) {
-    // ★ 停止：ループもOFF
-    isPlaying = false;
-    playBtn.textContent = "再生 ▶";
-    try { await synth.stop(); } catch (_) {}
-    statusEl.textContent = "停止";
-  } else {
-    // ★ 再生開始：onEndedで自動リスタートされる（無限ループ）
-    isPlaying = true;
-    playBtn.textContent = "停止 ■";
-    try {
-      await synth.start();
-      statusEl.textContent = "再生中（ループ）";
-    } catch (e) {
-      statusEl.textContent = "再生に失敗しました";
-      console.error(e);
-      // エラー時は状態をリセット
-      isPlaying = false;
-      playBtn.textContent = "再生 ▶";
-    }
-  }
-}
-
-/* --- ランダム表示（現在の再生状態を保ったまま差し替え可） --- */
-async function showRandomPattern(autoPlayIfPlaying = true) {
-  currentIndex = pickNextIndex();
-  await renderPattern(PATTERNS[currentIndex], Number(tempoSlider.value));
-  // 直前が再生中なら、新パターンでも即再生してループ継続
-  if (autoPlayIfPlaying && isPlaying) {
-    try { 
-      await synth.start(); 
-      statusEl.textContent = "再生中（ループ）"; 
-    } catch (e) {
-      console.error("auto-play failed:", e);
-      isPlaying = false;
-      playBtn.textContent = "再生 ▶";
-    }
-  }
-}
-
-/* --- イベント設定 --- */
-playBtn.addEventListener("click", togglePlay);
-
-nextBtn.addEventListener("click", async () => {
-  await showRandomPattern(/* autoPlayIfPlaying */ true);
-});
-
-tempoSlider.addEventListener("input", async () => {
-  // 表示の更新
-  tempoVal.textContent = tempoSlider.value;
-
-  // 再生状態を記録して、テンポを反映（音切れ最小化のため即描画→必要なら自動再生）
-  const wasPlaying = isPlaying;
-  // ここでは isPlaying を一時的にオフにし、onEndedによるリスタートを抑止
-  isPlaying = false;
-  try { if (synth) await synth.stop(); } catch (_) {}
-
-  await renderPattern(PATTERNS[currentIndex], Number(tempoSlider.value));
-
-  // さっき再生中だったなら、新テンポですぐにループ再開
-  isPlaying = wasPlaying;
-  if (wasPlaying) {
-    playBtn.textContent = "停止 ■";
-    try { 
-      await synth.start(); 
-      statusEl.textContent = "再生中（ループ）"; 
-    } catch (e) {
-      console.error("tempo change play failed:", e);
-      isPlaying = false;
-      playBtn.textContent = "再生 ▶";
-    }
-  } else {
-    playBtn.textContent = "再生 ▶";
-  }
-});
-
-/* --- 初期化：ページ読み込み時にランダム表示 --- */
-window.addEventListener("load", async () => {
-  tempoVal.textContent = tempoSlider.value;
-  await showRandomPattern(false); // 初期表示は再生しない
-  statusEl.textContent = "準備完了";
-});
-</script>
+<script src="script.js"></script> <!-- JavaScriptを外部ファイル化 -->
 </body>
 </html>
