@@ -72,10 +72,11 @@ const JAZZ_STANDARDS = [
   "T:Lullaby of Birdland\n| cc_B_A G F2 D-|D2 F=E- E2 z C-| C2 |",
   "T:Moanin'\n| z F2 F _AAFC || _E2 F2 z4 |" ,
   "T:Ask Me Now\n| cGEC B, B3 | _BFD_B, A, A3 |",
-  "T:Bemsha Swing\n|G2| c2 z2 z2 z G | z c _B_A G2 F2| EE B,2 C2 z2 |",
+  "T:Bemsha Swing\n|G2|| c2 z2 z2 z G | z c _B_A G2 F2| EE B,2 C2 z2 |",
   "T:Epistrophy\n|z2 ^CD ^A B3 | ^CD^AB-B2 z2 |z2 ^CD _B E3 |^CD_BE-E2 z2 |",
   "T:Eronel\n|dBce-e3 d | F2 FE--E2 z2 |z A (3_B_df _ecde- |e6  z|",
-  "T:Well You Needn't\n|B,| CF A2 c2 AF |_E'_B z2z2 B,|CF A2 c2 AF |_B_G z2z2 |"
+  "T:Well You Needn't\n|B,|| CF A2 c2 AF |_E'_B z2z2 B,|CF A2 c2 AF |_B_G z2z2 |",
+  "T:Salt Peanuts\n|z2 F2 fF z2|F2 fF z2 z|"
 
 ];
 
